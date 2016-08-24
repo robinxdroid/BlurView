@@ -14,14 +14,23 @@
 
 ### Screenshot ###
 
-![](https://github.com/robinxdroid/BlurView/blob/master/1.png?raw=true)[](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView.gif?raw=true) ![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView1.gif?raw=true)![](https://github.com/robinxdroid/BlurView/blob/master/BlurDrawable.gif?raw=true) 
+![](https://github.com/robinxdroid/BlurView/blob/master/1.png?raw=true)
+![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView.gif?raw=true) ![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView1.gif?raw=true)
+![](https://github.com/robinxdroid/BlurView/blob/master/BlurDrawable.gif?raw=true) 
 
 ### Usage ###
 Gradle:
 ```java
     compile 'net.robinx:lib.blurview:1.0.1'
 ```
-
+```java
+defaultConfig {
+        ....
+       
+        renderscriptTargetApi 19
+        renderscriptSupportModeEnabled  true
+    }
+```
 **Blur:**
 
 ```java
@@ -72,11 +81,15 @@ BlurBehindView blurBehindView = (BlurBehindView) findViewById(R.id.blur_behind_v
                 .clipCircleOutline(true) //是否裁成圆形
                 .clipCircleRadius(1.0f) //圆形半径系数 <= 1.0
                 .cornerRadius(10) //圆角
-                .processor(NdkStackBlurProcessor.INSTANCE); //BlurProcessor，内置了很多不同的Processor，可自己定义
+                .processor(NdkStackBlurProcessor.INSTANCE); //BlurProcessor，内置了很多不同的Processor，可自己定义，默认RenderScript进行处理
 ``` 
 **自定义Processor**：
 实现BlurProcessor接口，实现process(Bitmap original, int radius)函数即可
  
+ 
+**Thanks**：
+ [https://github.com/patrickfav/Dali](https://github.com/patrickfav/Dali)
+ [https://github.com/kikoso/android-stackblur](https://github.com/kikoso/android-stackblur)
 
 #About me
 Email:735506404@robinx.net<br>
