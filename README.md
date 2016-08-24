@@ -14,7 +14,7 @@
 
 ### Screenshot ###
 
-![](https://github.com/robinxdroid/BlurView/blob/master/1.png?raw=true)![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView.gif?raw=true) ![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView1.gif?raw=true)![](https://github.com/robinxdroid/BlurView/blob/master/BlurDrawable.gif?raw=true) 
+![](https://github.com/robinxdroid/BlurView/blob/master/1.png?raw=true)[](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView.gif?raw=true) ![](https://github.com/robinxdroid/BlurView/blob/master/BlurBehindView1.gif?raw=true)![](https://github.com/robinxdroid/BlurView/blob/master/BlurDrawable.gif?raw=true) 
 
 ### Usage ###
 Gradle:
