@@ -3,7 +3,7 @@
 
 ### Support ###
     
-    1 BlurBehindView 三种更新方式:只模糊一次(Never); 滚动时实时更新（scroll）; 无条件实时更新(Continuously); Java
+    1 BlurBehindView 三种更新方式:只模糊一次(Never); 滚动时实时更新（scroll）; 无条件实时更新(Continuously); 
     2 BlurDrawable 实时模糊Drawable
     3 多种Blur方式，核心算法源自 https://github.com/patrickfav/Dali
     
