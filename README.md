@@ -1,11 +1,11 @@
 ##BlurView##
-高斯模糊库，四种模糊方式 
+这次就不吹牛逼了
 
 ### Support ###
     
     1 BlurBehindView 三种更新方式:只模糊一次(Never); 滚动时实时更新（scroll）; 无条件实时更新(Continuously); Java
     2 BlurDrawable 实时模糊Drawable
-    3 多种Blur方式，核心算法源自 [https://github.com/patrickfav/Dali](https://github.com/patrickfav/Dali)
+    3 多种Blur方式，核心算法源自 https://github.com/patrickfav/Dali
     
 
 ### Example ###
@@ -34,7 +34,7 @@ defaultConfig {
 **Blur:**
 
 ```java
-blurBitmap = RSGaussianBlurProcessor.getInstance(context).process(willBlurBitmap, blurRadius); //RenderScript其中一个方式(此方式在所有方式中速度最快)
+blurBitmap = RSGaussianBlurProcessor.getInstance(context).process(originalBitmap, blurRadius); //RenderScript其中一个方式(此方式在所有方式中速度最快)
 
 blurBitmap = NdkStackBlurProcessor.INSTANCE.process(willBlurBitmap, blurRadius);  //NDK方式,速度比上面的方式略慢，相对稳定
 
@@ -84,12 +84,14 @@ BlurBehindView blurBehindView = (BlurBehindView) findViewById(R.id.blur_behind_v
                 .processor(NdkStackBlurProcessor.INSTANCE); //BlurProcessor，内置了很多不同的Processor，可自己定义，默认RenderScript进行处理
 ``` 
 **自定义Processor**：
+
 实现BlurProcessor接口，实现process(Bitmap original, int radius)函数即可
  
  
 **Thanks**：
- [https://github.com/patrickfav/Dali](https://github.com/patrickfav/Dali)
- [https://github.com/kikoso/android-stackblur](https://github.com/kikoso/android-stackblur)
+
+[https://github.com/patrickfav/Dali](https://github.com/patrickfav/Dali)<br>
+[https://github.com/kikoso/android-stackblur](https://github.com/kikoso/android-stackblur)
 
 #About me
 Email:735506404@robinx.net<br>
