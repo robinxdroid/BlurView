@@ -1,0 +1,79 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion ANDROID_BUILD_SDK_VERSION as int
+    buildToolsVersion ANDROID_BUILD_TOOLS_VERSION
+
+    defaultConfig {
+        minSdkVersion ANDROID_BUILD_MIN_SDK_VERSION as int
+        targetSdkVersion ANDROID_BUILD_TARGET_SDK_VERSION as int
+        versionCode VERSION_CODE as int
+        versionName VERSION_NAME
+
+        ndk {
+            moduleName "blur"
+            cFlags "-DANDROID_NDK -D_RELEASE"
+            ldLibs "m", "log", "jnigraphics"
+            abiFilters "all"
+        }
+
+        renderscriptTargetApi 19
+        renderscriptSupportModeEnabled  true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+//-----------------javadoc编码------------------------
+allprojects {
+    tasks.withType(Javadoc) {
+        options{
+            encoding "UTF-8"
+            charSet 'UTF-8'
+            links "http://docs.oracle.com/javase/7/docs/api"
+        }
+    }
+}
+
+//-----------------jCenter 配置 begin------------------------
+ext {
+    bintrayRepo = 'RobinMaven'
+    bintrayName = 'BlurViewLibrary'
+
+    publishedGroupId = 'net.robinx'
+    libraryName = 'lib.blurview'
+    artifact = 'lib.blurview'
+
+    libraryDescription = 'Android blur view library'
+
+    siteUrl = 'http://git.oschina.net/robinxdroid/BlurView'
+    gitUrl = 'https://git.oschina.net/robinxdroid/BlurView.git'
+
+    libraryVersion = '1.0.0'
+
+    developerId = 'robinx'
+    developerName = 'robin'
+    developerEmail = 'robinxdroid@gmail.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+
+}
+
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
