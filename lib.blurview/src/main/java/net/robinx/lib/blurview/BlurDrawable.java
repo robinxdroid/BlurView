@@ -25,6 +25,8 @@ public class BlurDrawable extends ColorDrawable {
 
     private final View mBlurredView;
     private Bitmap mSnapShotBitmap, mBlurredBitmap;
+    private int mBlurredViewWidth, mBlurredViewHeight;
+    private boolean mSizeDividerChanged;
     private Canvas mBlurCanvas;
 
     private float mCornerRadius = 0;
@@ -69,16 +71,51 @@ public class BlurDrawable extends ColorDrawable {
         sizeDivider(8);
     }
 
-    private void initDrawingBitmap() {
-        mBlurredBitmap = Bitmap.createBitmap((int) ((float) mBlurredView.getWidth() / mSizeDivider), (int) ((float) mBlurredView.getHeight() / mSizeDivider), Bitmap.Config.ARGB_8888);
+    private boolean initDrawingBitmap() {
+        final int width = mBlurredView.getWidth();
+        final int height = mBlurredView.getHeight();
+        if (mBlurCanvas == null
+                || mSizeDividerChanged
+                || mBlurredViewWidth != width
+                || mBlurredViewHeight != height) {
+            mSizeDividerChanged = false;
 
-        this.mSnapShotBitmap = Bitmap.createBitmap((int) ((float) mBlurredView.getWidth() / mSizeDivider), (int) ((float) mBlurredView.getHeight() / mSizeDivider), Bitmap.Config.ARGB_8888);
-        mBlurCanvas = new Canvas(mSnapShotBitmap);
-        mBlurCanvas.scale(1.0F / mSizeDivider, 1.0F / mSizeDivider);
+            mBlurredViewWidth = width;
+            mBlurredViewHeight = height;
 
-        mBlurInput = Allocation.createFromBitmap(mRenderScript, mSnapShotBitmap,
-                Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_SCRIPT);
-        mBlurOutput = Allocation.createTyped(mRenderScript, mBlurInput.getType());
+            int scaledWidth = width / mSizeDivider;
+            int scaledHeight = height / mSizeDivider;
+
+            scaledWidth = scaledWidth - scaledWidth % 4 + 4;
+            scaledHeight = scaledHeight - scaledHeight % 4 + 4;
+
+            if (mBlurredBitmap == null
+                    || mBlurredBitmap.getWidth() != scaledWidth
+                    || mBlurredBitmap.getHeight() != scaledHeight) {
+                mSnapShotBitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, Bitmap.Config.ARGB_8888);
+                if (mSnapShotBitmap == null) {
+                    return false;
+                }
+
+                mBlurredBitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, Bitmap.Config.ARGB_8888);
+                if (mBlurredBitmap == null) {
+                    return false;
+                }
+            }
+
+
+//        mBlurredBitmap = Bitmap.createBitmap((int) ((float) mBlurredView.getWidth() / mSizeDivider), (int) ((float) mBlurredView.getHeight() / mSizeDivider), Bitmap.Config.ARGB_8888);
+//
+//        this.mSnapShotBitmap = Bitmap.createBitmap((int) ((float) mBlurredView.getWidth() / mSizeDivider), (int) ((float) mBlurredView.getHeight() / mSizeDivider), Bitmap.Config.ARGB_8888);
+            mBlurCanvas = new Canvas(mSnapShotBitmap);
+            mBlurCanvas.scale(1.0F / mSizeDivider, 1.0F / mSizeDivider);
+
+            mBlurInput = Allocation.createFromBitmap(mRenderScript, mSnapShotBitmap,
+                    Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_SCRIPT);
+            mBlurOutput = Allocation.createTyped(mRenderScript, mBlurInput.getType());
+
+        }
+        return true;
     }
 
     @Override
@@ -99,14 +136,18 @@ public class BlurDrawable extends ColorDrawable {
     }
 
     private void drawBlur(Canvas canvas) {
-        printView(mBlurredView);
-        blur(mSnapShotBitmap, mBlurredBitmap);
+        if (initDrawingBitmap()) {
 
-        canvas.save();
-        canvas.translate(mBlurredView.getX() - mOffsetX, mBlurredView.getY() - mOffsetY);
-        canvas.scale(mSizeDivider, mSizeDivider);
-        canvas.drawBitmap(mBlurredBitmap, 0, 0, null);
-        canvas.restore();
+            printView(mBlurredView);
+            blur(mSnapShotBitmap, mBlurredBitmap);
+
+            canvas.save();
+            canvas.translate(mBlurredView.getX() - mOffsetX, mBlurredView.getY() - mOffsetY);
+            canvas.scale(mSizeDivider, mSizeDivider);
+            canvas.drawBitmap(mBlurredBitmap, 0, 0, null);
+            canvas.restore();
+        }
+
     }
 
     private void printView(View bluredView) {
@@ -190,6 +231,7 @@ public class BlurDrawable extends ColorDrawable {
         }
         if (mSizeDivider != sizeDivider) {
             mSizeDivider = sizeDivider;
+            mSizeDividerChanged = true;
         }
         return this;
     }
