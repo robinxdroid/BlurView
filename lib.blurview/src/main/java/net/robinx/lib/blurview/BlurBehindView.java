@@ -227,10 +227,15 @@ public class BlurBehindView extends RelativeLayout {
         @Override
         protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
-            this.blurBitmap.recycle();
-            this.snapShotBitmap.recycle();
-            this.blurBitmap = null;
-            this.snapShotBitmap = null;
+            if (blurBitmap != null) {
+                this.blurBitmap.recycle();
+                this.blurBitmap = null;
+            }
+
+            if (snapShotBitmap != null) {
+                this.snapShotBitmap.recycle();
+                this.snapShotBitmap = null;
+            }
 
             //RenderScript
             if (mRenderScript != null) {
@@ -294,12 +299,14 @@ public class BlurBehindView extends RelativeLayout {
             this.halfPaddingOnSides = (int) (this.extraPaddingOnSides / 2.0F);
             this.snapShotBitmap = Bitmap.createBitmap((int) ((float) this.getWidth() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), (int) ((float) this.getHeight() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), Config.ARGB_8888);
             this.blurCanvas = new Canvas(this.snapShotBitmap);
-            this.drawToBitmap();
 
             //RenderScript
             mBlurInput = Allocation.createFromBitmap(mRenderScript, this.snapShotBitmap,
                     Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_SCRIPT);
             mBlurOutput = Allocation.createTyped(mRenderScript, mBlurInput.getType());
+
+            this.drawToBitmap();
+
         }
 
         private void initRenderScript(Context context) {
