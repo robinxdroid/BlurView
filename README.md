@@ -21,7 +21,7 @@
 ### Usage ###
 Gradle:
 ```java
-    compile 'net.robinx:lib.blurview:1.0.1'
+    compile 'net.robinx:lib.blurview:1.0.2'
 ```
 ```java
 defaultConfig {
@@ -36,12 +36,12 @@ defaultConfig {
 ```java
 blurBitmap = RSGaussianBlurProcessor.getInstance(context).process(originalBitmap, blurRadius); //RenderScript其中一个方式(此方式在所有方式中速度最快)
 
-blurBitmap = NdkStackBlurProcessor.INSTANCE.process(willBlurBitmap, blurRadius);  //NDK方式,速度比上面的方式略慢，相对稳定
+blurBitmap = NdkStackBlurProcessor.INSTANCE.process(originalBitmap, blurRadius);  //NDK方式,速度比上面的方式略慢，相对稳定
 
 blurBitmap = BlurProcessorProxy.INSTANCE  //代理
                         .processor(processor) //传入Processor对象,eg:NdkStackBlurProcessor.INSTANCE
                         .copy(true) //为true时，将copy一份，不影响原图
-                        .process(willBlurBitmap, blurRadius);
+                        .process(originalBitmap, blurRadius);
 
 ```
 更多请见[BlurActivity.java](https://github.com/robinxdroid/BlurView/blob/master/app/src/main/java/net/robinx/blur/view/BlurActivity.java)
@@ -52,11 +52,11 @@ blurBitmap = BlurProcessorProxy.INSTANCE  //代理
 
 ```java
  BlurDrawable blurDrawable = new BlurDrawable(bluredview);
-                blurDrawable.drawableContainerId(R.id.blur_drawable_container) //此方法用于bluredview内部包含了将要设置blurDrawable的View的时候
-                        .cornerRadius(10) //圆角
-                        .blurRadius(10) //Blur程度 <= 25
-                        .overlayColor(Color.parseColor("#64ffffff")) //覆盖颜色
-                        .offset(mBlurDrawableRelativeLayout.getLeft(), mBlurDrawableRelativeLayout.getTop() ); //画布偏移
+ blurDrawable.drawableContainerId(R.id.blur_drawable_container) //此方法用于bluredview内部包含了将要设置blurDrawable的View的时候
+            .cornerRadius(10) //圆角
+            .blurRadius(10) //Blur程度 <= 25
+            .overlayColor(Color.parseColor("#64ffffff")) //覆盖颜色
+            .offset(mBlurDrawableRelativeLayout.getLeft(), mBlurDrawableRelativeLayout.getTop() ); //画布偏移
 ```   
 
 **BlurBehindView**：
@@ -65,23 +65,22 @@ blurBitmap = BlurProcessorProxy.INSTANCE  //代理
 
 ```java
 <net.robinx.lib.blurview.BlurBehindView
-                        android:id="@+id/blur_behind_view"
-                        android:layout_width="150dp"
-                        android:layout_height="150dp"
-                        >
+        android:id="@+id/blur_behind_view"
+        android:layout_width="150dp"
+        android:layout_height="150dp">
 </net.robinx.lib.blurview.BlurBehindView>
 ```   
 2.代码中使用: 
 ```java
 BlurBehindView blurBehindView = (BlurBehindView) findViewById(R.id.blur_behind_view);
-        blurBehindView.updateMode(BlurBehindView.UPDATE_CONTINOUSLY) //更新方式，3种，见demo
-                .blurRadius(8)  //模糊程度，RenderScript方式时，<= 25
-                .sizeDivider(10) //对原图的缩放成都，此值越大，缩放程度越大，Blur时间越短
-                .clipPath(path) //裁剪路径，传入不同的path可裁成不同的形状
-                .clipCircleOutline(true) //是否裁成圆形
-                .clipCircleRadius(1.0f) //圆形半径系数 <= 1.0
-                .cornerRadius(10) //圆角
-                .processor(NdkStackBlurProcessor.INSTANCE); //BlurProcessor，内置了很多不同的Processor，可自己定义，默认RenderScript进行处理
+blurBehindView.updateMode(BlurBehindView.UPDATE_CONTINOUSLY) //更新方式，3种，见demo
+        .blurRadius(8)  //模糊程度，RenderScript方式时，<= 25
+        .sizeDivider(10) //对原图的缩放程度，此值越大，缩放程度越大，Blur时间越短
+        .clipPath(path) //裁剪路径，传入不同的path可裁成不同的形状
+        .clipCircleOutline(true) //是否裁成圆形
+        .clipCircleRadius(1.0f) //圆形半径系数 <= 1.0
+        .cornerRadius(10) //圆角
+        .processor(NdkStackBlurProcessor.INSTANCE); //BlurProcessor，内置了很多不同的Processor，可自己定义，默认RenderScript进行处理
 ``` 
 **自定义Processor**：
 
