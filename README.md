@@ -1,5 +1,4 @@
 ##BlurView##
-这次就不吹牛逼了
 
 ### Support ###
     
