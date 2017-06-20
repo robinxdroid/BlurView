@@ -319,8 +319,8 @@ public class BlurBehindView extends RelativeLayout {
         private void drawToBitmap() {
             if (this.blurCanvas != null) {
                 this.blurCanvas.save();
-                this.blurCanvas.drawColor(0, Mode.CLEAR);
-                //this.blurCanvas.drawColor(BlurBehindView.this.overlayColor,Mode.SRC_OVER);
+//                this.blurCanvas.drawColor(0, Mode.CLEAR);
+                this.blurCanvas.drawColor(Color.WHITE,Mode.SRC_OVER);
                 this.blurCanvas.scale(1.0F / BlurBehindView.this.sizeDivider, 1.0F / BlurBehindView.this.sizeDivider);
                 this.getLocationOnScreen(this.thisPositionInWindow);
                 this.printViewsBehind((ViewGroup) this.getRootView());
