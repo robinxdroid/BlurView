@@ -12,63 +12,54 @@ import android.graphics.Path.Direction;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.PorterDuffXfermode;
 import android.support.v8.renderscript.Allocation;
 import android.support.v8.renderscript.Element;
 import android.support.v8.renderscript.RenderScript;
 import android.support.v8.renderscript.ScriptIntrinsicBlur;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver.OnScrollChangedListener;
 import android.widget.RelativeLayout;
-
 import net.robinx.lib.blurview.processor.BlurProcessor;
 
+import java.util.ArrayList;
 import java.io.FileOutputStream;
 
 public class BlurBehindView extends RelativeLayout {
     public static final int UPDATE_CONTINOUSLY = 2;
     public static final int UPDATE_NEVER = 0;
     public static final int UPDATE_SCROLL_CHANGED = 1;
-    private int blurRadius = 8;
+    private float blurRadius = 8.0f;
     private BlurRender mBlurRender;
     private boolean clipCircleOutline = false;
     private float clipCircleRadius = 1.0F;
     private float cornerRadius = 0;
     private float sizeDivider = 12.0F;
+    private float paddingSide = 15.0F;
     //private int overlayColor = Color.TRANSPARENT;
     private int updateMode = UPDATE_NEVER;
     private BlurProcessor mProcessor;
 
-    private static final int TAG_VIEW = 10000;
+    private static final int TAG_VIEW = 12345;
+    public static final String TAG = "BlurBehindView";
 
-    public BlurBehindView(Context context) {
+    public BlurBehindView(Context context, View parentView) {
         super(context);
-        this.init();
+        this.init(parentView);
     }
 
-    public BlurBehindView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        this.init();
-    }
-
-    public BlurBehindView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        this.init();
-    }
-
-    private void init() {
-        this.mBlurRender = new BlurRender(this.getContext());
+    private void init(View parentView) {
+        this.mBlurRender = new BlurRender(this.getContext(), parentView);
         this.addView(this.mBlurRender, 0, new LayoutParams(-1, -1));
         this.setTag(TAG_VIEW);
     }
 
     private boolean isSizeKnown() {
-        if (this.mBlurRender.getWidth() != 0) {
-            return true;
-        }
-        return false;
+        return this.mBlurRender.getWidth() > 0 && this.mBlurRender.getHeight() > 0;
     }
 
     public float getSizeDivider() {
@@ -87,7 +78,7 @@ public class BlurBehindView extends RelativeLayout {
         return this.blurRadius;
     }
 
-    public BlurBehindView blurRadius(int blurRadius) {
+    public BlurBehindView blurRadius(float blurRadius) {
         if (this.blurRadius != blurRadius) {
             this.blurRadius = blurRadius;
             this.mBlurRender.setRenderScriptBlurRadius(blurRadius);
@@ -111,9 +102,8 @@ public class BlurBehindView extends RelativeLayout {
         return this;
     }
 
-    public BlurBehindView clipPath(Path clipPath) {
-        this.mBlurRender.setClipPath(clipPath);
-        this.mBlurRender.invalidate();
+    public BlurBehindView clipPath(String svgPath) {
+        this.mBlurRender.initClipPath(svgPath);
         return this;
     }
 
@@ -122,7 +112,7 @@ public class BlurBehindView extends RelativeLayout {
     }
 
     public BlurBehindView clipCircleRadius(float radius) {
-        this.clipCircleRadius = Math.max(0.0F, Math.min(1.0F, radius));
+        this.clipCircleRadius = radius;
         this.mBlurRender.initCirclePath();
         return this;
     }
@@ -134,6 +124,16 @@ public class BlurBehindView extends RelativeLayout {
     public BlurBehindView cornerRadius(float cornerRadius) {
         this.cornerRadius = Math.max(0.0F, cornerRadius);
         this.mBlurRender.initRoundRectPath();
+        return this;
+    }
+
+    public float getPaddingSide() {
+        return this.paddingSide;
+    }
+
+    public BlurBehindView paddingSide(float paddingSide) {
+        this.paddingSide = Math.max(0.0F, paddingSide);
+        this.mBlurRender.drawToBitmap();
         return this;
     }
 
@@ -155,19 +155,20 @@ public class BlurBehindView extends RelativeLayout {
     }
 
     public class BlurRender extends View {
-        public static final int PADDING_SIDE_TO_AVOID_FLICKER = 15;
         private Bitmap blurBitmap;
         private Canvas blurCanvas;
         int[] childPositionInWindow = new int[2];
         final Path circlePath = new Path();
         private Path roundPath = new Path();
         private Path clipPath;
+        private View blurView;
         float extraPaddingOnSides;
         int halfPaddingOnSides;
         boolean isInDrawPassFromThisView = false;
         private Bitmap snapShotBitmap;
         int[] thisPositionInWindow = new int[2];
         private BlurProcessor mProcessor;
+        private float density = 1.0F;
 
         //RenderScript
         private RenderScript mRenderScript;
@@ -183,38 +184,82 @@ public class BlurBehindView extends RelativeLayout {
             }
         };
 
-        public BlurRender(Context context) {
+        public BlurRender(Context context, View blurView) {
             super(context);
+            this.blurView = blurView;
             this.setLayerType(LAYER_TYPE_HARDWARE, null);
+            this.density = this.getResources().getDisplayMetrics().density;
 
             //RenderScript
             this.initRenderScript(getContext());
         }
 
-        private void printViewsBehind(ViewGroup rootView) {
-            if (!this.isInEditMode() && !(rootView instanceof BlurBehindView) && rootView.getVisibility() == View.VISIBLE && rootView.getAlpha() != 0.0F) {
-                if (rootView.getBackground() != null) {
-                    this.blurCanvas.save();
-                    this.blurCanvas.translate((float) (this.childPositionInWindow[0] - this.thisPositionInWindow[0] + this.halfPaddingOnSides), (float) (this.halfPaddingOnSides + this.childPositionInWindow[1] - this.thisPositionInWindow[1]));
-                    rootView.getBackground().draw(this.blurCanvas);
-                    this.blurCanvas.restore();
+        private boolean printViewsBehind(ViewGroup rootView) {
+            if (rootView == this.blurView) { 
+                return true;
+            }
+            if (rootView.getBackground() != null) {
+                this.blurCanvas.save();
+                rootView.getLocationOnScreen(this.childPositionInWindow);
+                this.blurCanvas.translate(
+                    (float) (this.childPositionInWindow[0] 
+                        - this.thisPositionInWindow[0] 
+                        + this.halfPaddingOnSides), 
+                    (float) (this.halfPaddingOnSides 
+                        + this.childPositionInWindow[1] 
+                        - this.thisPositionInWindow[1]));
+                // TODO: it seems the a black background with opacity is rendered at 100% opacity
+                this.blurCanvas.scale(rootView.getScaleX(), rootView.getScaleY());
+                rootView.getBackground().draw(this.blurCanvas);
+                this.blurCanvas.restore();
+            }
+            boolean renderChildViews = rootView.getAlpha() != 0.0F && rootView.getVisibility() == View.VISIBLE;
+            for (int i = 0; i < rootView.getChildCount(); ++i) {
+                View childView = rootView.getChildAt(i);
+                /* WEIRDNESS: findViewById checks if childView is equal to id to
+                 * however due to Android views being collapsed as an optimisation
+                 * layer in React Native, the findViewById method will return false
+                 * as the blur view may be a sibling, and not a child */
+                if (childView.getId() == this.blurView.getId()) {
+                    return true;
                 }
-
-                for (int i = 0; i < rootView.getChildCount(); ++i) {
-                    View childView = rootView.getChildAt(i);
-                    if (childView.findViewWithTag(TAG_VIEW) != null & rootView.getVisibility() == View.VISIBLE) {
-                        this.printViewsBehind((ViewGroup) childView);
-                    } else if (childView.getVisibility() == View.VISIBLE) {
-                        this.blurCanvas.save();
-                        childView.getLocationOnScreen(this.childPositionInWindow);
-                        this.blurCanvas.translate((float) (this.halfPaddingOnSides + this.childPositionInWindow[0] - this.thisPositionInWindow[0]), (float) (this.halfPaddingOnSides + this.childPositionInWindow[1] - this.thisPositionInWindow[1]));
-                        this.blurCanvas.scale(childView.getScaleX(), childView.getScaleY());
-                        childView.draw(this.blurCanvas);
-                        this.blurCanvas.restore();
+                if (childView.findViewById(this.blurView.getId()) != null) {
+                    if (BuildConfig.DEBUG && (rootView instanceof BlurBehindView)) {
+                        Log.w(TAG, "blur view is nesting another blur view");
+                    }
+                    this.blurCanvas.save();
+                    // no translate required
+                    if (BuildConfig.DEBUG && BlurBehindView.this.blurRadius > 0 && (rootView.getScaleX() != 1 || rootView.getScaleY() != 1)) {
+                        Log.w(TAG, "blur view is being scaled - this may cause render issues");
+                    }
+                    this.blurCanvas.scale(rootView.getScaleX(), rootView.getScaleY());
+                    boolean found = this.printViewsBehind((ViewGroup) childView);
+                    this.blurCanvas.restore();
+                    if (found) {
+                        return true;
                     }
                 }
+                else if (renderChildViews == true
+                    && childView.getVisibility() == View.VISIBLE
+                    && childView.getAlpha() != 0.0F
+                    && !(childView instanceof BlurBehindView)
+                ) {
+                    this.blurCanvas.save();
+                    childView.getLocationOnScreen(this.childPositionInWindow);
+                    this.blurCanvas.translate(
+                        (float) (this.halfPaddingOnSides 
+                            + this.childPositionInWindow[0] 
+                            - this.thisPositionInWindow[0]), 
+                        (float) (this.halfPaddingOnSides 
+                            + this.childPositionInWindow[1] 
+                            - this.thisPositionInWindow[1]));
+                    this.blurCanvas.scale(childView.getScaleX(), childView.getScaleY());
+                    childView.draw(this.blurCanvas);
+                    this.blurCanvas.restore();
+                }
             }
-        }
+            return false;
+        }        
 
         @Override
         protected void onAttachedToWindow() {
@@ -252,19 +297,40 @@ public class BlurBehindView extends RelativeLayout {
             if (this.isInEditMode()) {
                 canvas.drawColor(Color.TRANSPARENT);
             } else if (this.blurBitmap != null && BlurBehindView.this.blurRadius > 0.0F) {
-                if (BlurBehindView.this.clipCircleOutline) {
-                    canvas.clipPath(this.circlePath);
-                }else if (clipPath != null){
-                    canvas.clipPath(this.clipPath);
-                } else if (this.roundPath != null) {
-                    canvas.clipPath(this.roundPath);
+                Paint paint = null;
+                if (BlurBehindView.this.clipCircleOutline == true || this.clipPath != null || this.roundPath != null) {
+                    paint = new Paint();
+                    paint.setAntiAlias(true);
+                    paint.setStyle(Paint.Style.FILL);
+                    paint.setColor(0xff424242); // amount of antialiasing?
+                    canvas.drawARGB(0, 0, 0, 0);
+                    if (BlurBehindView.this.clipCircleOutline == true) {
+                        canvas.drawPath(this.circlePath, paint);
+                    }else if (this.clipPath != null) {
+                        canvas.drawPath(this.clipPath, paint);
+                    } else if (this.roundPath != null) {
+                        canvas.drawPath(this.roundPath, paint);
+                    }
+                    paint.setXfermode(new PorterDuffXfermode(Mode.SRC_IN));
+                    paint.setFlags(paint.getFlags() | Paint.FILTER_BITMAP_FLAG);
+                    paint.setFilterBitmap(true);
                 }
+                canvas.drawBitmap(
+                    this.blurBitmap,
+                    null,
+                    new Rect(
+                        -this.halfPaddingOnSides,
+                        -this.halfPaddingOnSides,
+                        this.getWidth() + this.halfPaddingOnSides,
+                        this.getHeight() + this.halfPaddingOnSides
+                    ),
+                    paint
+                );
 
-                canvas.drawBitmap(this.blurBitmap, null, new Rect(-this.halfPaddingOnSides, -this.halfPaddingOnSides, this.getWidth() + this.halfPaddingOnSides, this.getHeight() + this.halfPaddingOnSides), (Paint) null);
                 if (BlurBehindView.this.getBackground() != null) {
                     BlurBehindView.this.getBackground().draw(canvas);
                 }
-
+                
                 this.isInDrawPassFromThisView = false;
                 if (BlurBehindView.this.updateMode == UPDATE_CONTINOUSLY) {
                     this.drawToBitmap();
@@ -275,7 +341,7 @@ public class BlurBehindView extends RelativeLayout {
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
             super.onLayout(changed, left, top, right, bottom);
-            if (this.snapShotBitmap == null) {
+            if (this.snapShotBitmap == null && (right - left) > 0 && (bottom - top) > 0) {
                 this.initDrawingBitmap();
                 this.initCirclePath();
                 this.initRoundRectPath();
@@ -284,20 +350,43 @@ public class BlurBehindView extends RelativeLayout {
 
         private void initRoundRectPath() {
             this.roundPath.reset();
+            float cornerRadius = BlurBehindView.this.cornerRadius * this.density;
             RectF rectF = new RectF();
             rectF.set(0, 0, this.getWidth(), this.getHeight());
-            roundPath.addRoundRect(rectF, BlurBehindView.this.cornerRadius, BlurBehindView.this.cornerRadius, Direction.CCW);
+            roundPath.addRoundRect(rectF, cornerRadius, cornerRadius, Direction.CCW);
         }
 
         public void initCirclePath() {
+            float circleRadius = BlurBehindView.this.clipCircleRadius * this.density;
+            /* backward compatibility for 100% width/height */
+            if (BlurBehindView.this.clipCircleRadius == 1.0) {
+                circleRadius = Math.min((float) this.getWidth(), (float) (this.getHeight() / 2));
+            }
             this.circlePath.reset();
-            this.circlePath.addCircle((float) (this.getWidth() / 2), (float) (this.getHeight() / 2), Math.min((float) this.getWidth(), (float) (this.getHeight() / 2) * BlurBehindView.this.clipCircleRadius), Direction.CCW);
+            this.circlePath.addCircle(
+                (float) (this.getWidth() / 2),
+                (float) (this.getHeight() / 2), 
+                circleRadius,
+                Direction.CCW
+            );
+        }
+
+        public void initClipPath(String svgPath) {
+            this.clipPath = SVGParser.parsePath(svgPath, this.density);
         }
 
         public void initDrawingBitmap() {
-            this.extraPaddingOnSides = PADDING_SIDE_TO_AVOID_FLICKER * this.getResources().getDisplayMetrics().density * BlurBehindView.this.sizeDivider;
+            this.extraPaddingOnSides = BlurBehindView.this.paddingSide * this.density * BlurBehindView.this.sizeDivider;
             this.halfPaddingOnSides = (int) (this.extraPaddingOnSides / 2.0F);
-            this.snapShotBitmap = Bitmap.createBitmap((int) ((float) this.getWidth() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), (int) ((float) this.getHeight() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), Config.ARGB_8888);
+            this.snapShotBitmap = Bitmap.createBitmap(
+                (int) (
+                    (float) this.getWidth() / BlurBehindView.this.sizeDivider + 
+                    this.extraPaddingOnSides / BlurBehindView.this.sizeDivider
+                ), 
+                (int) (
+                    (float) this.getHeight() / BlurBehindView.this.sizeDivider + 
+                    this.extraPaddingOnSides / BlurBehindView.this.sizeDivider
+                ), Config.ARGB_8888);
             this.blurCanvas = new Canvas(this.snapShotBitmap);
 
             //RenderScript
@@ -317,48 +406,51 @@ public class BlurBehindView extends RelativeLayout {
         }
 
         private void drawToBitmap() {
+            if (BlurBehindView.this.blurRadius <= 0.0f) {
+                this.invalidate();
+                return;
+            }
             if (this.blurCanvas != null) {
                 this.blurCanvas.save();
 //                this.blurCanvas.drawColor(0, Mode.CLEAR);
-                this.blurCanvas.drawColor(Color.WHITE,Mode.SRC_OVER);
+                this.blurCanvas.drawColor(Color.BLACK, Mode.SRC_OVER);
                 this.blurCanvas.scale(1.0F / BlurBehindView.this.sizeDivider, 1.0F / BlurBehindView.this.sizeDivider);
                 this.getLocationOnScreen(this.thisPositionInWindow);
-                this.printViewsBehind((ViewGroup) this.getRootView());
-                if (!this.isInEditMode()) {
+                
 
+                if (!this.isInEditMode()) {
+                    // Log.i(TAG, "blur view print views behind initiated");
+                    boolean found = this.printViewsBehind((ViewGroup) this.getRootView());
+                    if (!found) {
+                        Log.e(TAG, "blur view was rendered however all children were rendered (blur view was not found in the traversal)");
+                    }
                     //saveIntoFile("/sdcard/"+System.currentTimeMillis()+".png",snapShotBitmap);
 
                     if (mProcessor != null) {
-                        this.blurBitmap = mProcessor.process(this.snapShotBitmap, BlurBehindView.this.blurRadius);
-                        Log.i("robin", "Do Blur Processor");
+                        this.blurBitmap = mProcessor.process(this.snapShotBitmap, Math.round(BlurBehindView.this.blurRadius));
                     } else {
                         //this.blurBitmap = NdkStackBlurProcessor.INSTANCE.process(this.snapShotBitmap, BlurBehindView.this.blurRadius);
 
                         //RenderScript
                         if (mBlurInput != null && mBlurScript != null && mBlurOutput != null && this.snapShotBitmap != null) {
                             if (blurBitmap == null) {
-                                this.blurBitmap = Bitmap.createBitmap((int) ((float) this.getWidth() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), (int) ((float) this.getHeight() / BlurBehindView.this.sizeDivider + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), Config.ARGB_8888);
+                                this.blurBitmap = Bitmap.createBitmap(
+                                    (int) ((float) this.getWidth() / BlurBehindView.this.sizeDivider 
+                                        + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), 
+                                    (int) ((float) this.getHeight() / BlurBehindView.this.sizeDivider 
+                                        + this.extraPaddingOnSides / BlurBehindView.this.sizeDivider), 
+                                    Config.ARGB_8888);
                             }
                             mBlurInput.copyFrom(this.snapShotBitmap);
                             mBlurScript.setInput(mBlurInput);
                             mBlurScript.forEach(mBlurOutput);
                             mBlurOutput.copyTo(this.blurBitmap);
-                            Log.i("robin", "Do Blur RenderScript");
                         }
-
                     }
-
                 }
-
                 this.invalidate();
                 this.blurCanvas.restore();
             }
-
-        }
-
-        public BlurRender setClipPath(Path clipPath) {
-            this.clipPath = clipPath;
-            return this;
         }
 
         public void saveIntoFile (String path, Bitmap bitmap){
@@ -377,9 +469,9 @@ public class BlurBehindView extends RelativeLayout {
             return this;
         }
 
-        public BlurRender setRenderScriptBlurRadius(int radius){
+        public BlurRender setRenderScriptBlurRadius(float radius){
             //RenderScript
-            if (mBlurScript != null) {
+            if (mBlurScript != null && radius > 0.0f) {
                 mBlurScript.setRadius(radius);
             }
             return this;
