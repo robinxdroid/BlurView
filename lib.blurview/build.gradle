@@ -24,16 +24,21 @@ android {
             moduleName "blur"
             cFlags "-DANDROID_NDK -D_RELEASE"
             ldLibs "m", "log", "jnigraphics"
-            abiFilters "all"
+            abiFilters 'armeabi-v7a', 'x86'
         }
 
         renderscriptTargetApi 19
-        renderscriptSupportModeEnabled  true
+        renderscriptSupportModeEnabled true
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                cmake {
+                   abiFilters 'armeabi-v7a', 'x86'
+                }
+            }
         }
     }
     sourceSets {
