@@ -1,4 +1,4 @@
-##BlurView##
+## BlurView ##
 
 ### Support ###
     
@@ -91,7 +91,7 @@ blurBehindView.updateMode(BlurBehindView.UPDATE_CONTINOUSLY) //更新方式，3�
 [https://github.com/patrickfav/Dali](https://github.com/patrickfav/Dali)<br>
 [https://github.com/kikoso/android-stackblur](https://github.com/kikoso/android-stackblur)
 
-#About me
+# About me
 Email:735506404@robinx.net<br>
 Blog:[www.robinx.net](http://www.robinx.net)
 
