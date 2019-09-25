@@ -24,6 +24,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver.OnScrollChangedListener;
 import android.widget.RelativeLayout;
+import android.widget.HorizontalScrollView;
 import net.robinx.lib.blurview.processor.BlurProcessor;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class BlurBehindView extends RelativeLayout {
     public static final int UPDATE_CONTINOUSLY = 2;
     public static final int UPDATE_NEVER = 0;
     public static final int UPDATE_SCROLL_CHANGED = 1;
+    public static boolean BLUR_RENDER_TX = false;
     private float blurRadius = 8.0f;
     private BlurRender mBlurRender;
     private boolean clipCircleOutline = false;
@@ -154,6 +156,22 @@ public class BlurBehindView extends RelativeLayout {
         return this;
     }
 
+    private static boolean containsScrollView(View parent) {
+        if (parent instanceof HorizontalScrollView) {
+            return true;
+        }
+        if (parent instanceof ViewGroup) {
+            int childCount = ((ViewGroup)parent).getChildCount();
+            for (int i = 0; i < childCount; i++) {
+                View child = ((ViewGroup)parent).getChildAt(i);
+                if (containsScrollView(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public class BlurRender extends View {
         private Bitmap blurBitmap;
         private Canvas blurCanvas;
@@ -202,12 +220,17 @@ public class BlurBehindView extends RelativeLayout {
                 this.blurCanvas.save();
                 rootView.getLocationOnScreen(this.childPositionInWindow);
                 this.blurCanvas.translate(
-                    (float) (this.childPositionInWindow[0] 
+                    (float) (
+                        this.childPositionInWindow[0] 
                         - this.thisPositionInWindow[0] 
-                        + this.halfPaddingOnSides), 
-                    (float) (this.halfPaddingOnSides 
+                        + this.halfPaddingOnSides
+                    ), 
+                    (float)(
+                        this.halfPaddingOnSides 
                         + this.childPositionInWindow[1] 
-                        - this.thisPositionInWindow[1]));
+                        - this.thisPositionInWindow[1]
+                    )
+                );
                 // TODO: it seems the a black background with opacity is rendered at 100% opacity
                 this.blurCanvas.scale(rootView.getScaleX(), rootView.getScaleY());
                 rootView.getBackground().draw(this.blurCanvas);
@@ -223,7 +246,10 @@ public class BlurBehindView extends RelativeLayout {
                 if (childView.getId() == this.blurView.getId()) {
                     return true;
                 }
-                if (childView.findViewById(this.blurView.getId()) != null) {
+                // It is danagerous to call HorizontalScrollView.draw() as the method mutates
+                // the layout by computing the animated nodes.
+                // TODO: make those two methods one method and should be called 'isViewDrawSafe'
+                if (childView.findViewById(this.blurView.getId()) != null || containsScrollView(childView)) {
                     if (BuildConfig.DEBUG && (rootView instanceof BlurBehindView)) {
                         Log.w(TAG, "blur view is nesting another blur view");
                     }
@@ -247,13 +273,19 @@ public class BlurBehindView extends RelativeLayout {
                     this.blurCanvas.save();
                     childView.getLocationOnScreen(this.childPositionInWindow);
                     this.blurCanvas.translate(
-                        (float) (this.halfPaddingOnSides 
+                        (float) (
+                            this.halfPaddingOnSides 
                             + this.childPositionInWindow[0] 
-                            - this.thisPositionInWindow[0]), 
-                        (float) (this.halfPaddingOnSides 
+                            - this.thisPositionInWindow[0]
+                        ),
+                        (float) (
+                            this.halfPaddingOnSides 
                             + this.childPositionInWindow[1] 
-                            - this.thisPositionInWindow[1]));
+                            - this.thisPositionInWindow[1]
+                        )
+                    );
                     this.blurCanvas.scale(childView.getScaleX(), childView.getScaleY());
+                    // TODO: intersection of the draw rectangle vs. blur canvas
                     childView.draw(this.blurCanvas);
                     this.blurCanvas.restore();
                 }
@@ -297,6 +329,9 @@ public class BlurBehindView extends RelativeLayout {
             if (this.isInEditMode()) {
                 canvas.drawColor(Color.TRANSPARENT);
             } else if (this.blurBitmap != null && BlurBehindView.this.blurRadius > 0.0F) {
+                if (BlurBehindView.this.updateMode == UPDATE_CONTINOUSLY) {
+                    this.drawToBitmap();
+                }
                 Paint paint = null;
                 if (BlurBehindView.this.clipCircleOutline == true || this.clipPath != null || this.roundPath != null) {
                     paint = new Paint();
@@ -332,9 +367,6 @@ public class BlurBehindView extends RelativeLayout {
                 }
                 
                 this.isInDrawPassFromThisView = false;
-                if (BlurBehindView.this.updateMode == UPDATE_CONTINOUSLY) {
-                    this.drawToBitmap();
-                }
             }
         }
 
@@ -406,6 +438,11 @@ public class BlurBehindView extends RelativeLayout {
         }
 
         private void drawToBitmap() {
+            if (BlurBehindView.BLUR_RENDER_TX) {
+                Log.i(TAG, "prevented blur rendering initiated by another blur");
+                // this.invalidate();
+                return;
+            }
             if (BlurBehindView.this.blurRadius <= 0.0f) {
                 this.invalidate();
                 return;
@@ -420,7 +457,9 @@ public class BlurBehindView extends RelativeLayout {
 
                 if (!this.isInEditMode()) {
                     // Log.i(TAG, "blur view print views behind initiated");
+                    BlurBehindView.BLUR_RENDER_TX = true;
                     boolean found = this.printViewsBehind((ViewGroup) this.getRootView());
+                    BlurBehindView.BLUR_RENDER_TX = false;
                     if (!found) {
                         Log.e(TAG, "blur view was rendered however all children were rendered (blur view was not found in the traversal)");
                     }
